@@ -1,0 +1,241 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-table-app-user
+      author: system
+      changes:
+        - createTable:
+            tableName: APP_USER
+            columns:
+              - column:
+                  name: ID
+                  type: VARCHAR(36)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: USERNAME
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: PASSWORD
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: DISPLAY_NAME
+                  type: VARCHAR(100)
+              - column:
+                  name: CREATED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: UPDATED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: APP_USER
+
+  - changeSet:
+      id: create-table-monitored-website
+      author: system
+      changes:
+        - createTable:
+            tableName: MONITORED_WEBSITE
+            columns:
+              - column:
+                  name: ID
+                  type: VARCHAR(36)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: URL
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ALIAS
+                  type: VARCHAR(100)
+              - column:
+                  name: ENABLED
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: CREATED_BY
+                  type: VARCHAR(36)
+              - column:
+                  name: CREATED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: UPDATED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: MONITORED_WEBSITE
+            baseColumnNames: CREATED_BY
+            referencedTableName: APP_USER
+            referencedColumnNames: ID
+            constraintName: fk_monitored_website_created_by
+      rollback:
+        - dropTable:
+            tableName: MONITORED_WEBSITE
+
+  - changeSet:
+      id: create-table-tag
+      author: system
+      changes:
+        - createTable:
+            tableName: TAG
+            columns:
+              - column:
+                  name: ID
+                  type: VARCHAR(36)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: NAME
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: COLOR
+                  type: VARCHAR(7)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: CREATED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: TAG
+
+  - changeSet:
+      id: create-table-website-tag
+      author: system
+      changes:
+        - createTable:
+            tableName: WEBSITE_TAG
+            columns:
+              - column:
+                  name: WEBSITE_ID
+                  type: VARCHAR(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: TAG_ID
+                  type: VARCHAR(36)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: WEBSITE_TAG
+            columnNames: WEBSITE_ID, TAG_ID
+            constraintName: pk_website_tag
+        - addForeignKeyConstraint:
+            baseTableName: WEBSITE_TAG
+            baseColumnNames: WEBSITE_ID
+            referencedTableName: MONITORED_WEBSITE
+            referencedColumnNames: ID
+            constraintName: fk_website_tag_website
+        - addForeignKeyConstraint:
+            baseTableName: WEBSITE_TAG
+            baseColumnNames: TAG_ID
+            referencedTableName: TAG
+            referencedColumnNames: ID
+            constraintName: fk_website_tag_tag
+      rollback:
+        - dropTable:
+            tableName: WEBSITE_TAG
+
+  - changeSet:
+      id: create-table-check-result
+      author: system
+      changes:
+        - createTable:
+            tableName: CHECK_RESULT
+            columns:
+              - column:
+                  name: ID
+                  type: VARCHAR(36)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: WEBSITE_ID
+                  type: VARCHAR(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: STATUS
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: HTTP_CODE
+                  type: INTEGER
+              - column:
+                  name: RESPONSE_MS
+                  type: BIGINT
+              - column:
+                  name: ERROR_MSG
+                  type: VARCHAR(500)
+              - column:
+                  name: CHECKED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: CHECK_RESULT
+            baseColumnNames: WEBSITE_ID
+            referencedTableName: MONITORED_WEBSITE
+            referencedColumnNames: ID
+            constraintName: fk_check_result_website
+      rollback:
+        - dropTable:
+            tableName: CHECK_RESULT
+
+  - changeSet:
+      id: create-indexes
+      author: system
+      changes:
+        - createIndex:
+            tableName: CHECK_RESULT
+            indexName: idx_check_result_website_time
+            columns:
+              - column:
+                  name: WEBSITE_ID
+              - column:
+                  name: CHECKED_AT
+                  descending: true
+        - createIndex:
+            tableName: MONITORED_WEBSITE
+            indexName: idx_monitored_website_enabled
+            columns:
+              - column:
+                  name: ENABLED
+      rollback:
+        - dropIndex:
+            tableName: CHECK_RESULT
+            indexName: idx_check_result_website_time
+        - dropIndex:
+            tableName: MONITORED_WEBSITE
+            indexName: idx_monitored_website_enabled
