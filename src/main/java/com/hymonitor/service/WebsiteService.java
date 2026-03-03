@@ -7,6 +7,7 @@ import com.hymonitor.dto.WebsiteTagRequest;
 import com.hymonitor.entity.CheckResult;
 import com.hymonitor.entity.MonitoredWebsite;
 import com.hymonitor.entity.Tag;
+import com.hymonitor.exception.ResourceNotFoundException;
 import com.hymonitor.repository.CheckResultRepository;
 import com.hymonitor.repository.MonitoredWebsiteRepository;
 import com.hymonitor.repository.TagRepository;
@@ -79,7 +80,7 @@ public class WebsiteService {
     public WebsiteResponse updateWebsite(String id, WebsiteRequest request) {
         UUID websiteId = UUID.fromString(id);
         MonitoredWebsite website = websiteRepository.findById(websiteId)
-                .orElseThrow(() -> new RuntimeException("Website not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Website not found"));
 
         website.setUrl(request.getUrl());
         website.setAlias(request.getAlias());
@@ -112,7 +113,7 @@ public class WebsiteService {
     public WebsiteResponse setWebsiteTags(String websiteId, WebsiteTagRequest request) {
         UUID id = UUID.fromString(websiteId);
         MonitoredWebsite website = websiteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Website not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Website not found"));
 
         Set<Tag> tags = new HashSet<>();
         if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {

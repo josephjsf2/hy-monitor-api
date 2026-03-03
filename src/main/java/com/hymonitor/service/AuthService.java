@@ -4,6 +4,8 @@ import com.hymonitor.dto.AuthResponse;
 import com.hymonitor.dto.LoginRequest;
 import com.hymonitor.dto.RegisterRequest;
 import com.hymonitor.entity.AppUser;
+import com.hymonitor.exception.DuplicateResourceException;
+import com.hymonitor.exception.ResourceNotFoundException;
 import com.hymonitor.repository.AppUserRepository;
 import com.hymonitor.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +38,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already exists");  // Will be replaced with custom exception in Task 10
+            throw new DuplicateResourceException("Username already exists");
         }
 
         AppUser user = AppUser.builder()
@@ -70,7 +72,7 @@ public class AuthService {
 
         String token = jwtTokenProvider.generateToken(request.getUsername());
         AppUser user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));  // Will be replaced with custom exception in Task 10
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         LOGGER.info("User logged in successfully: {}", user.getUsername());
 

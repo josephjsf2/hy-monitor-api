@@ -3,6 +3,8 @@ package com.hymonitor.service;
 import com.hymonitor.dto.TagRequest;
 import com.hymonitor.dto.TagResponse;
 import com.hymonitor.entity.Tag;
+import com.hymonitor.exception.DuplicateResourceException;
+import com.hymonitor.exception.ResourceNotFoundException;
 import com.hymonitor.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,7 +41,7 @@ public class TagService {
      */
     public TagResponse createTag(TagRequest request) {
         if (tagRepository.existsByName(request.getName())) {
-            throw new RuntimeException("Tag name already exists"); // Will be custom exception in Task 10
+            throw new DuplicateResourceException("Tag name already exists");
         }
         Tag tag = Tag.builder()
                 .name(request.getName())
@@ -57,11 +59,11 @@ public class TagService {
      */
     public TagResponse updateTag(UUID id, TagRequest request) {
         Tag tag = tagRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tag not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
 
         // Check uniqueness if name changed
         if (!tag.getName().equals(request.getName()) && tagRepository.existsByName(request.getName())) {
-            throw new RuntimeException("Tag name already exists");
+            throw new DuplicateResourceException("Tag name already exists");
         }
 
         tag.setName(request.getName());
@@ -76,7 +78,7 @@ public class TagService {
      */
     public void deleteTag(UUID id) {
         Tag tag = tagRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tag not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
 
         // Clear associations from all websites before deleting
         tag.getWebsites().forEach(w -> w.getTags().remove(tag));
