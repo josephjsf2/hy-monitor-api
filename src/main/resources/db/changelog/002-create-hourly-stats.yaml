@@ -1,0 +1,120 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-table-hourly-website-stats
+      author: system
+      changes:
+        - createTable:
+            tableName: HOURLY_WEBSITE_STATS
+            columns:
+              - column:
+                  name: ID
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: WEBSITE_ID
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: HOUR_BUCKET
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: CHECK_COUNT
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: UP_COUNT
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: DOWN_COUNT
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: SLOW_COUNT
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: AVG_RESPONSE_MS
+                  type: BIGINT
+              - column:
+                  name: MIN_RESPONSE_MS
+                  type: BIGINT
+              - column:
+                  name: MAX_RESPONSE_MS
+                  type: BIGINT
+              - column:
+                  name: CREATED_AT
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: HOURLY_WEBSITE_STATS
+            baseColumnNames: WEBSITE_ID
+            referencedTableName: MONITORED_WEBSITE
+            referencedColumnNames: ID
+            constraintName: fk_hourly_stats_website
+      rollback:
+        - dropTable:
+            tableName: HOURLY_WEBSITE_STATS
+
+  - changeSet:
+      id: add-unique-index-hourly-stats-website-hour
+      author: system
+      changes:
+        - addUniqueConstraint:
+            tableName: HOURLY_WEBSITE_STATS
+            columnNames: WEBSITE_ID, HOUR_BUCKET
+            constraintName: uq_hourly_stats_website_hour
+        - createIndex:
+            tableName: HOURLY_WEBSITE_STATS
+            indexName: idx_hourly_stats_hour_bucket
+            columns:
+              - column:
+                  name: HOUR_BUCKET
+      rollback:
+        - dropUniqueConstraint:
+            tableName: HOURLY_WEBSITE_STATS
+            constraintName: uq_hourly_stats_website_hour
+        - dropIndex:
+            tableName: HOURLY_WEBSITE_STATS
+            indexName: idx_hourly_stats_hour_bucket
+
+  - changeSet:
+      id: backfill-hourly-stats-from-check-result
+      author: system
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO HOURLY_WEBSITE_STATS (ID, WEBSITE_ID, HOUR_BUCKET, CHECK_COUNT, UP_COUNT, DOWN_COUNT, SLOW_COUNT, AVG_RESPONSE_MS, MIN_RESPONSE_MS, MAX_RESPONSE_MS, CREATED_AT)
+              SELECT
+                gen_random_uuid(),
+                WEBSITE_ID,
+                date_trunc('hour', CHECKED_AT) AS HOUR_BUCKET,
+                COUNT(*) AS CHECK_COUNT,
+                COUNT(*) FILTER (WHERE STATUS = 'UP') AS UP_COUNT,
+                COUNT(*) FILTER (WHERE STATUS = 'DOWN') AS DOWN_COUNT,
+                COUNT(*) FILTER (WHERE STATUS = 'SLOW') AS SLOW_COUNT,
+                AVG(RESPONSE_MS)::bigint AS AVG_RESPONSE_MS,
+                MIN(RESPONSE_MS) AS MIN_RESPONSE_MS,
+                MAX(RESPONSE_MS) AS MAX_RESPONSE_MS,
+                NOW()
+              FROM CHECK_RESULT
+              GROUP BY WEBSITE_ID, date_trunc('hour', CHECKED_AT)
+              ON CONFLICT (WEBSITE_ID, HOUR_BUCKET) DO NOTHING
+      rollback:
+        - sql:
+            sql: DELETE FROM HOURLY_WEBSITE_STATS
