@@ -58,4 +58,13 @@ public interface CheckResultRepository extends JpaRepository<CheckResult, UUID> 
     @Modifying
     @Query("DELETE FROM CheckResult cr WHERE cr.checkedAt < :cutoff")
     int deleteByCheckedAtBefore(@Param("cutoff") LocalDateTime cutoff);
+
+    /**
+     * Find check results for a website within a time range
+     * @param websiteId the website ID
+     * @param from start time (inclusive)
+     * @param to end time (exclusive)
+     * @return List of CheckResults
+     */
+    List<CheckResult> findByWebsiteIdAndCheckedAtBetween(UUID websiteId, LocalDateTime from, LocalDateTime to);
 }
