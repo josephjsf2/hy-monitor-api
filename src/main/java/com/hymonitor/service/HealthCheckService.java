@@ -46,7 +46,7 @@ public class HealthCheckService {
             }
 
             return CheckResult.builder()
-                    .websiteId(website.getId().toString())
+                    .websiteId(website.getId())
                     .status(status)
                     .httpCode(httpCode)
                     .responseMs(responseMs)
@@ -59,7 +59,7 @@ public class HealthCheckService {
                 : "Unknown error";
 
             return CheckResult.builder()
-                    .websiteId(website.getId().toString())
+                    .websiteId(website.getId())
                     .status(WebsiteStatus.DOWN)
                     .responseMs(responseMs)
                     .errorMsg(errorMsg)

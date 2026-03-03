@@ -8,7 +8,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     nullable: false
@@ -51,7 +51,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     nullable: false
@@ -71,7 +71,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: CREATED_BY
-                  type: VARCHAR(36)
+                  type: VARCHAR(50)
               - column:
                   name: CREATED_AT
                   type: TIMESTAMP
@@ -84,12 +84,6 @@ databaseChangeLog:
                   defaultValueComputed: NOW()
                   constraints:
                     nullable: false
-        - addForeignKeyConstraint:
-            baseTableName: MONITORED_WEBSITE
-            baseColumnNames: CREATED_BY
-            referencedTableName: APP_USER
-            referencedColumnNames: ID
-            constraintName: fk_monitored_website_created_by
       rollback:
         - dropTable:
             tableName: MONITORED_WEBSITE
@@ -103,7 +97,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     nullable: false
@@ -137,12 +131,12 @@ databaseChangeLog:
             columns:
               - column:
                   name: WEBSITE_ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     nullable: false
               - column:
                   name: TAG_ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     nullable: false
         - addPrimaryKey:
@@ -174,13 +168,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
                   name: WEBSITE_ID
-                  type: VARCHAR(36)
+                  type: UUID
                   constraints:
                     nullable: false
               - column:

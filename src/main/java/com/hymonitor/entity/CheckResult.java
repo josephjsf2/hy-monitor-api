@@ -24,7 +24,7 @@ public class CheckResult {
     private UUID id;
 
     @Column(name = "WEBSITE_ID", nullable = false)
-    private String websiteId;
+    private UUID websiteId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", nullable = false, length = 20)

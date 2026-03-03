@@ -22,7 +22,7 @@ public interface CheckResultRepository extends JpaRepository<CheckResult, UUID> 
      * @param websiteId the website ID
      * @return Optional of the latest CheckResult
      */
-    Optional<CheckResult> findFirstByWebsiteIdOrderByCheckedAtDesc(String websiteId);
+    Optional<CheckResult> findFirstByWebsiteIdOrderByCheckedAtDesc(UUID websiteId);
 
     /**
      * Find check results for a website with pagination, ordered by checked time descending
@@ -30,7 +30,7 @@ public interface CheckResultRepository extends JpaRepository<CheckResult, UUID> 
      * @param pageable pagination parameters
      * @return List of CheckResults
      */
-    List<CheckResult> findByWebsiteIdOrderByCheckedAtDesc(String websiteId, Pageable pageable);
+    List<CheckResult> findByWebsiteIdOrderByCheckedAtDesc(UUID websiteId, Pageable pageable);
 
     /**
      * Find the latest check result for each website in the given list
@@ -39,11 +39,11 @@ public interface CheckResultRepository extends JpaRepository<CheckResult, UUID> 
      */
     @Query("SELECT cr FROM CheckResult cr WHERE cr.websiteId IN :websiteIds AND cr.checkedAt = " +
            "(SELECT MAX(cr2.checkedAt) FROM CheckResult cr2 WHERE cr2.websiteId = cr.websiteId)")
-    List<CheckResult> findLatestByWebsiteIds(@Param("websiteIds") List<String> websiteIds);
+    List<CheckResult> findLatestByWebsiteIds(@Param("websiteIds") List<UUID> websiteIds);
 
     /**
      * Delete all check results for a website
      * @param websiteId the website ID
      */
-    void deleteByWebsiteId(String websiteId);
+    void deleteByWebsiteId(UUID websiteId);
 }

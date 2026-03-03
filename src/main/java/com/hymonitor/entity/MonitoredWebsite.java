@@ -39,7 +39,7 @@ public class MonitoredWebsite {
     @Builder.Default
     private Boolean enabled = true;
 
-    @Column(name = "CREATED_BY", nullable = false)
+    @Column(name = "CREATED_BY")
     private String createdBy;
 
     @CreatedDate

@@ -38,19 +38,19 @@ public class WebsiteService {
     @Transactional(readOnly = true)
     public List<WebsiteResponse> getAllWebsites() {
         List<MonitoredWebsite> websites = websiteRepository.findAll();
-        List<String> websiteIds = websites.stream()
-                .map(w -> w.getId().toString())
+        List<UUID> websiteIds = websites.stream()
+                .map(MonitoredWebsite::getId)
                 .collect(Collectors.toList());
 
         // Batch fetch latest check results
-        Map<String, CheckResult> latestResults = new HashMap<>();
+        Map<UUID, CheckResult> latestResults = new HashMap<>();
         if (!websiteIds.isEmpty()) {
             checkResultRepository.findLatestByWebsiteIds(websiteIds)
                     .forEach(cr -> latestResults.put(cr.getWebsiteId(), cr));
         }
 
         return websites.stream()
-                .map(w -> toResponse(w, latestResults.get(w.getId().toString())))
+                .map(w -> toResponse(w, latestResults.get(w.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -90,7 +90,7 @@ public class WebsiteService {
         websiteRepository.save(website);
 
         CheckResult latest = checkResultRepository
-                .findFirstByWebsiteIdOrderByCheckedAtDesc(id)
+                .findFirstByWebsiteIdOrderByCheckedAtDesc(websiteId)
                 .orElse(null);
         return toResponse(website, latest);
     }
@@ -100,8 +100,9 @@ public class WebsiteService {
      * @param id website ID
      */
     public void deleteWebsite(String id) {
-        checkResultRepository.deleteByWebsiteId(id);
-        websiteRepository.deleteById(UUID.fromString(id));
+        UUID websiteId = UUID.fromString(id);
+        checkResultRepository.deleteByWebsiteId(websiteId);
+        websiteRepository.deleteById(websiteId);
     }
 
     /**
@@ -126,7 +127,7 @@ public class WebsiteService {
         websiteRepository.save(website);
 
         CheckResult latest = checkResultRepository
-                .findFirstByWebsiteIdOrderByCheckedAtDesc(websiteId)
+                .findFirstByWebsiteIdOrderByCheckedAtDesc(id)
                 .orElse(null);
         return toResponse(website, latest);
     }
@@ -140,8 +141,9 @@ public class WebsiteService {
      */
     @Transactional(readOnly = true)
     public List<CheckResult> getWebsiteHistory(String websiteId, int page, int size) {
+        UUID id = UUID.fromString(websiteId);
         return checkResultRepository.findByWebsiteIdOrderByCheckedAtDesc(
-                websiteId, PageRequest.of(page, size));
+                id, PageRequest.of(page, size));
     }
 
     /**
