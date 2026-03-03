@@ -1,17 +1,21 @@
 package com.hymonitor.controller;
 
+import com.hymonitor.dto.HourlyStatsResponse;
 import com.hymonitor.dto.WebsiteRequest;
 import com.hymonitor.dto.WebsiteResponse;
 import com.hymonitor.dto.WebsiteTagRequest;
 import com.hymonitor.entity.CheckResult;
+import com.hymonitor.service.StatsService;
 import com.hymonitor.service.WebsiteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -23,6 +27,7 @@ import java.util.List;
 public class WebsiteController {
 
     private final WebsiteService websiteService;
+    private final StatsService statsService;
 
     /**
      * Get all websites with their latest check status
@@ -97,5 +102,20 @@ public class WebsiteController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         return ResponseEntity.ok(websiteService.getWebsiteHistory(id, page, size));
+    }
+
+    /**
+     * Get hourly statistics for a website
+     * @param id website ID
+     * @param from start time (ISO 8601)
+     * @param to end time (ISO 8601)
+     * @return list of hourly statistics
+     */
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<List<HourlyStatsResponse>> getWebsiteStats(
+            @PathVariable String id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        return ResponseEntity.ok(statsService.getHourlyStats(id, from, to));
     }
 }
