@@ -12,6 +12,8 @@ import com.hymonitor.repository.CheckResultRepository;
 import com.hymonitor.repository.MonitoredWebsiteRepository;
 import com.hymonitor.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,8 +35,10 @@ public class WebsiteService {
 
     /**
      * Get all websites with their latest check results
+     * Cached to improve performance for dashboard and website list endpoints
      * @return List of website responses
      */
+    @Cacheable(value = "websites")
     @Transactional(readOnly = true)
     public List<WebsiteResponse> getAllWebsites() {
         List<MonitoredWebsite> websites = websiteRepository.findAll();
@@ -56,10 +60,12 @@ public class WebsiteService {
 
     /**
      * Create a new monitored website
+     * Evicts websites cache to reflect new website
      * @param request website creation request
      * @param userId the user creating the website
      * @return created website response
      */
+    @CacheEvict(value = "websites", allEntries = true)
     public WebsiteResponse createWebsite(WebsiteRequest request, String userId) {
         MonitoredWebsite website = MonitoredWebsite.builder()
                 .url(request.getUrl())
@@ -73,10 +79,12 @@ public class WebsiteService {
 
     /**
      * Update an existing website
+     * Evicts websites cache to reflect updated website
      * @param id website ID
      * @param request update request
      * @return updated website response
      */
+    @CacheEvict(value = "websites", allEntries = true)
     public WebsiteResponse updateWebsite(String id, WebsiteRequest request) {
         UUID websiteId = UUID.fromString(id);
         MonitoredWebsite website = websiteRepository.findById(websiteId)
@@ -97,8 +105,10 @@ public class WebsiteService {
 
     /**
      * Delete a website and all its check results
+     * Evicts websites cache to reflect deleted website
      * @param id website ID
      */
+    @CacheEvict(value = "websites", allEntries = true)
     public void deleteWebsite(String id) {
         UUID websiteId = UUID.fromString(id);
         checkResultRepository.deleteByWebsiteId(websiteId);
@@ -107,10 +117,12 @@ public class WebsiteService {
 
     /**
      * Set tags for a website
+     * Evicts websites cache to reflect updated tags
      * @param websiteId website ID
      * @param request tag assignment request
      * @return updated website response
      */
+    @CacheEvict(value = "websites", allEntries = true)
     public WebsiteResponse setWebsiteTags(String websiteId, WebsiteTagRequest request) {
         UUID id = UUID.fromString(websiteId);
         MonitoredWebsite website = websiteRepository.findById(id)

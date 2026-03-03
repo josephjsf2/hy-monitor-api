@@ -8,6 +8,8 @@ import com.hymonitor.repository.MonitoredWebsiteRepository;
 import com.hymonitor.service.HealthCheckService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -27,10 +29,12 @@ public class MonitorScheduler {
     private final CheckResultRepository checkResultRepository;
     private final HealthCheckService healthCheckService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final CacheManager cacheManager;
 
     /**
      * Check all enabled websites on a fixed schedule
      * Saves check results and broadcasts status updates via WebSocket
+     * Evicts website cache after all checks complete to reflect fresh status
      */
     @Scheduled(fixedRateString = "${app.monitor.interval-ms}")
     public void checkAllWebsites() {
@@ -58,6 +62,12 @@ public class MonitorScheduler {
             } catch (Exception e) {
                 LOGGER.error("Error checking website {}: {}", website.getUrl(), e.getMessage());
             }
+        }
+
+        // Evict websites cache to reflect fresh check results
+        Cache websitesCache = cacheManager.getCache("websites");
+        if (websitesCache != null) {
+            websitesCache.clear();
         }
     }
 }

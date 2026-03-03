@@ -24,3 +24,4 @@ app:
     interval-ms: 60000
     timeout-ms: 10000
     slow-threshold-ms: 5000
+    retention-days: 180

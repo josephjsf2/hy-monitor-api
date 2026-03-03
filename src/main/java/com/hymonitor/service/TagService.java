@@ -7,6 +7,8 @@ import com.hymonitor.exception.DuplicateResourceException;
 import com.hymonitor.exception.ResourceNotFoundException;
 import com.hymonitor.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +27,10 @@ public class TagService {
 
     /**
      * Get all tags
+     * Cached to improve performance
      * @return list of tag responses
      */
+    @Cacheable(value = "tags")
     @Transactional(readOnly = true)
     public List<TagResponse> getAllTags() {
         return tagRepository.findAll().stream()
@@ -36,9 +40,11 @@ public class TagService {
 
     /**
      * Create a new tag
+     * Evicts tags cache to reflect new tag
      * @param request tag creation request
      * @return created tag response
      */
+    @CacheEvict(value = "tags", allEntries = true)
     public TagResponse createTag(TagRequest request) {
         if (tagRepository.existsByName(request.getName())) {
             throw new DuplicateResourceException("Tag name already exists");
@@ -53,10 +59,12 @@ public class TagService {
 
     /**
      * Update an existing tag
+     * Evicts tags cache to reflect updated tag
      * @param id tag ID
      * @param request tag update request
      * @return updated tag response
      */
+    @CacheEvict(value = "tags", allEntries = true)
     public TagResponse updateTag(UUID id, TagRequest request) {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
@@ -74,8 +82,10 @@ public class TagService {
 
     /**
      * Delete a tag
+     * Evicts tags cache to reflect deleted tag
      * @param id tag ID
      */
+    @CacheEvict(value = "tags", allEntries = true)
     public void deleteTag(UUID id) {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
