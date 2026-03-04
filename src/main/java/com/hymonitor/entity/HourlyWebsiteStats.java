@@ -2,6 +2,9 @@ package com.hymonitor.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,6 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(AuditingEntityListener.class)
 public class HourlyWebsiteStats {
 
     @Id
@@ -20,8 +24,9 @@ public class HourlyWebsiteStats {
     @Column(name = "ID")
     private UUID id;
 
-    @Column(name = "WEBSITE_ID", nullable = false)
-    private UUID websiteId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "WEBSITE_ID", nullable = false)
+    private MonitoredWebsite website;
 
     @Column(name = "HOUR_BUCKET", nullable = false)
     private LocalDateTime hourBucket;
@@ -47,6 +52,11 @@ public class HourlyWebsiteStats {
     @Column(name = "MAX_RESPONSE_MS")
     private Long maxResponseMs;
 
-    @Column(name = "CREATED_AT", nullable = false)
+    @CreatedDate
+    @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "UPDATED_AT")
+    private LocalDateTime updatedAt;
 }

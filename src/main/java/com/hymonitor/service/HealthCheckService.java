@@ -6,35 +6,30 @@ import com.hymonitor.entity.WebsiteStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
 
-/**
- * Service for performing health checks on monitored websites
- * Handles HTTP requests and determines website status based on response
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class HealthCheckService {
 
-    private final RestTemplate monitorRestTemplate;
+    private static final int MAX_ERROR_MSG_LENGTH = 1000;
+
+    private final RestClient monitorRestClient;
 
     @Value("${app.monitor.slow-threshold-ms}")
     private long slowThresholdMs;
 
-    /**
-     * Perform health check on a monitored website
-     * @param website the website to check
-     * @return CheckResult containing status, response time, and other metrics
-     */
     public CheckResult check(MonitoredWebsite website) {
         long startTime = System.currentTimeMillis();
         try {
-            ResponseEntity<String> response = monitorRestTemplate.getForEntity(website.getUrl(), String.class);
+            var response = monitorRestClient.get()
+                    .uri(website.getUrl())
+                    .retrieve()
+                    .toBodilessEntity();
             long responseMs = System.currentTimeMillis() - startTime;
             int httpCode = response.getStatusCode().value();
 
@@ -46,7 +41,7 @@ public class HealthCheckService {
             }
 
             return CheckResult.builder()
-                    .websiteId(website.getId())
+                    .website(website)
                     .status(status)
                     .httpCode(httpCode)
                     .responseMs(responseMs)
@@ -55,11 +50,11 @@ public class HealthCheckService {
         } catch (Exception e) {
             long responseMs = System.currentTimeMillis() - startTime;
             String errorMsg = e.getMessage() != null
-                ? e.getMessage().substring(0, Math.min(e.getMessage().length(), 500))
+                ? e.getMessage().substring(0, Math.min(e.getMessage().length(), MAX_ERROR_MSG_LENGTH))
                 : "Unknown error";
 
             return CheckResult.builder()
-                    .websiteId(website.getId())
+                    .website(website)
                     .status(WebsiteStatus.DOWN)
                     .responseMs(responseMs)
                     .errorMsg(errorMsg)

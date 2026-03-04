@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-1-add-owner-id-column
+      author: hymonitor
+      changes:
+        - addColumn:
+            tableName: MONITORED_WEBSITE
+            columns:
+              - column:
+                  name: OWNER_ID
+                  type: UUID
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 003-2-backfill-owner-id
+      author: hymonitor
+      changes:
+        - sql:
+            sql: >
+              UPDATE MONITORED_WEBSITE mw
+              SET OWNER_ID = au.ID
+              FROM APP_USER au
+              WHERE mw.CREATED_BY = au.USERNAME
+              AND mw.OWNER_ID IS NULL
+
+  - changeSet:
+      id: 003-3-add-owner-fk
+      author: hymonitor
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: MONITORED_WEBSITE
+            baseColumnNames: OWNER_ID
+            referencedTableName: APP_USER
+            referencedColumnNames: ID
+            constraintName: fk_monitored_website_owner
+
+  - changeSet:
+      id: 003-4-add-updated-at-to-hourly-stats
+      author: hymonitor
+      changes:
+        - addColumn:
+            tableName: HOURLY_WEBSITE_STATS
+            columns:
+              - column:
+                  name: UPDATED_AT
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 003-5-expand-error-msg-column
+      author: hymonitor
+      changes:
+        - modifyDataType:
+            tableName: CHECK_RESULT
+            columnName: ERROR_MSG
+            newDataType: VARCHAR(1000)
+
+  - changeSet:
+      id: 003-6-add-check-result-checked-at-index
+      author: hymonitor
+      changes:
+        - createIndex:
+            indexName: idx_check_result_checked_at
+            tableName: CHECK_RESULT
+            columns:
+              - column:
+                  name: CHECKED_AT

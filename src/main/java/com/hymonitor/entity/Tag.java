@@ -10,15 +10,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Tag entity for categorizing websites
- */
 @Entity
 @Table(name = "TAG")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @EntityListeners(AuditingEntityListener.class)
 public class Tag {
 
@@ -38,13 +36,13 @@ public class Tag {
     private LocalDateTime createdAt;
 
     @ManyToMany(mappedBy = "tags")
+    @Builder.Default
     private Set<MonitoredWebsite> websites = new HashSet<>();
 
-    @Builder
-    public Tag(UUID id, String name, String color, LocalDateTime createdAt) {
-        this.id = id;
-        this.name = name;
-        this.color = color;
-        this.createdAt = createdAt;
+    @PreRemove
+    private void removeTagAssociations() {
+        for (MonitoredWebsite website : websites) {
+            website.getTags().remove(this);
+        }
     }
 }

@@ -7,13 +7,12 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Monitored website entity
- */
 @Entity
 @Table(name = "MONITORED_WEBSITE")
 @Getter
@@ -39,8 +38,13 @@ public class MonitoredWebsite {
     @Builder.Default
     private Boolean enabled = true;
 
+    @Deprecated
     @Column(name = "CREATED_BY")
     private String createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "OWNER_ID")
+    private AppUser owner;
 
     @CreatedDate
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
@@ -58,4 +62,12 @@ public class MonitoredWebsite {
     )
     @Builder.Default
     private Set<Tag> tags = new HashSet<>();
+
+    @OneToMany(mappedBy = "website")
+    @Builder.Default
+    private List<CheckResult> checkResults = new ArrayList<>();
+
+    @OneToMany(mappedBy = "website")
+    @Builder.Default
+    private List<HourlyWebsiteStats> hourlyStats = new ArrayList<>();
 }

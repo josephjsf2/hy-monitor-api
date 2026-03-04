@@ -16,10 +16,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/**
- * Scheduled task for monitoring website health
- * Runs periodically to check all enabled websites and push status updates via WebSocket
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,11 +27,6 @@ public class MonitorScheduler {
     private final SimpMessagingTemplate messagingTemplate;
     private final CacheManager cacheManager;
 
-    /**
-     * Check all enabled websites on a fixed schedule
-     * Saves check results and broadcasts status updates via WebSocket
-     * Evicts website cache after all checks complete to reflect fresh status
-     */
     @Scheduled(fixedRateString = "${app.monitor.interval-ms}")
     public void checkAllWebsites() {
         List<MonitoredWebsite> websites = websiteRepository.findAllByEnabledTrue();
@@ -46,16 +37,15 @@ public class MonitorScheduler {
                 CheckResult result = healthCheckService.check(website);
                 checkResultRepository.save(result);
 
-                // Push via WebSocket
-                StatusUpdateMessage message = StatusUpdateMessage.builder()
-                        .websiteId(website.getId().toString())
-                        .url(website.getUrl())
-                        .alias(website.getAlias())
-                        .status(result.getStatus().name())
-                        .httpCode(result.getHttpCode())
-                        .responseMs(result.getResponseMs())
-                        .checkedAt(result.getCheckedAt())
-                        .build();
+                StatusUpdateMessage message = new StatusUpdateMessage(
+                        website.getId().toString(),
+                        website.getUrl(),
+                        website.getAlias(),
+                        result.getStatus().name(),
+                        result.getHttpCode(),
+                        result.getResponseMs(),
+                        result.getCheckedAt()
+                );
                 messagingTemplate.convertAndSend("/topic/status", message);
 
                 LOGGER.debug("Checked {}: {} ({}ms)", website.getUrl(), result.getStatus(), result.getResponseMs());
@@ -64,10 +54,14 @@ public class MonitorScheduler {
             }
         }
 
-        // Evict websites cache to reflect fresh check results
-        Cache websitesCache = cacheManager.getCache("websites");
-        if (websitesCache != null) {
-            websitesCache.clear();
+        evictCache("websites");
+        evictCache("dashboard");
+    }
+
+    private void evictCache(String cacheName) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+            cache.clear();
         }
     }
 }

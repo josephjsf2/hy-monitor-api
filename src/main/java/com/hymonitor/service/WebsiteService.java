@@ -1,29 +1,30 @@
 package com.hymonitor.service;
 
-import com.hymonitor.dto.TagResponse;
+import com.hymonitor.dto.CheckResultResponse;
 import com.hymonitor.dto.WebsiteRequest;
 import com.hymonitor.dto.WebsiteResponse;
 import com.hymonitor.dto.WebsiteTagRequest;
+import com.hymonitor.entity.AppUser;
 import com.hymonitor.entity.CheckResult;
 import com.hymonitor.entity.MonitoredWebsite;
 import com.hymonitor.entity.Tag;
 import com.hymonitor.exception.ResourceNotFoundException;
+import com.hymonitor.mapper.WebsiteMapper;
+import com.hymonitor.repository.AppUserRepository;
 import com.hymonitor.repository.CheckResultRepository;
 import com.hymonitor.repository.MonitoredWebsiteRepository;
 import com.hymonitor.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Service for managing monitored websites
- */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -32,12 +33,9 @@ public class WebsiteService {
     private final MonitoredWebsiteRepository websiteRepository;
     private final TagRepository tagRepository;
     private final CheckResultRepository checkResultRepository;
+    private final AppUserRepository userRepository;
+    private final WebsiteMapper websiteMapper;
 
-    /**
-     * Get all websites with their latest check results
-     * Cached to improve performance for dashboard and website list endpoints
-     * @return List of website responses
-     */
     @Cacheable(value = "websites")
     @Transactional(readOnly = true)
     public List<WebsiteResponse> getAllWebsites() {
@@ -46,48 +44,36 @@ public class WebsiteService {
                 .map(MonitoredWebsite::getId)
                 .collect(Collectors.toList());
 
-        // Batch fetch latest check results
         Map<UUID, CheckResult> latestResults = new HashMap<>();
         if (!websiteIds.isEmpty()) {
             checkResultRepository.findLatestByWebsiteIds(websiteIds)
-                    .forEach(cr -> latestResults.put(cr.getWebsiteId(), cr));
+                    .forEach(cr -> latestResults.put(cr.getWebsite().getId(), cr));
         }
 
         return websites.stream()
-                .map(w -> toResponse(w, latestResults.get(w.getId())))
+                .map(w -> websiteMapper.toResponse(w, latestResults.get(w.getId())))
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Create a new monitored website
-     * Evicts websites cache to reflect new website
-     * @param request website creation request
-     * @param userId the user creating the website
-     * @return created website response
-     */
-    @CacheEvict(value = "websites", allEntries = true)
-    public WebsiteResponse createWebsite(WebsiteRequest request, String userId) {
+    @CacheEvict(value = {"websites", "dashboard"}, allEntries = true)
+    public WebsiteResponse createWebsite(WebsiteRequest request, String username) {
+        AppUser owner = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
         MonitoredWebsite website = MonitoredWebsite.builder()
                 .url(request.getUrl())
                 .alias(request.getAlias())
                 .enabled(request.getEnabled() != null ? request.getEnabled() : true)
-                .createdBy(userId)
+                .createdBy(username)
+                .owner(owner)
                 .build();
         websiteRepository.save(website);
-        return toResponse(website, null);
+        return websiteMapper.toResponse(website, null);
     }
 
-    /**
-     * Update an existing website
-     * Evicts websites cache to reflect updated website
-     * @param id website ID
-     * @param request update request
-     * @return updated website response
-     */
-    @CacheEvict(value = "websites", allEntries = true)
-    public WebsiteResponse updateWebsite(String id, WebsiteRequest request) {
-        UUID websiteId = UUID.fromString(id);
-        MonitoredWebsite website = websiteRepository.findById(websiteId)
+    @CacheEvict(value = {"websites", "dashboard"}, allEntries = true)
+    public WebsiteResponse updateWebsite(UUID id, WebsiteRequest request) {
+        MonitoredWebsite website = websiteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Website not found"));
 
         website.setUrl(request.getUrl());
@@ -98,39 +84,25 @@ public class WebsiteService {
         websiteRepository.save(website);
 
         CheckResult latest = checkResultRepository
-                .findFirstByWebsiteIdOrderByCheckedAtDesc(websiteId)
+                .findFirstByWebsite_IdOrderByCheckedAtDesc(id)
                 .orElse(null);
-        return toResponse(website, latest);
+        return websiteMapper.toResponse(website, latest);
     }
 
-    /**
-     * Delete a website and all its check results
-     * Evicts websites cache to reflect deleted website
-     * @param id website ID
-     */
-    @CacheEvict(value = "websites", allEntries = true)
-    public void deleteWebsite(String id) {
-        UUID websiteId = UUID.fromString(id);
-        checkResultRepository.deleteByWebsiteId(websiteId);
-        websiteRepository.deleteById(websiteId);
+    @CacheEvict(value = {"websites", "dashboard"}, allEntries = true)
+    public void deleteWebsite(UUID id) {
+        checkResultRepository.deleteByWebsite_Id(id);
+        websiteRepository.deleteById(id);
     }
 
-    /**
-     * Set tags for a website
-     * Evicts websites cache to reflect updated tags
-     * @param websiteId website ID
-     * @param request tag assignment request
-     * @return updated website response
-     */
-    @CacheEvict(value = "websites", allEntries = true)
-    public WebsiteResponse setWebsiteTags(String websiteId, WebsiteTagRequest request) {
-        UUID id = UUID.fromString(websiteId);
-        MonitoredWebsite website = websiteRepository.findById(id)
+    @CacheEvict(value = {"websites", "dashboard"}, allEntries = true)
+    public WebsiteResponse setWebsiteTags(UUID websiteId, WebsiteTagRequest request) {
+        MonitoredWebsite website = websiteRepository.findById(websiteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Website not found"));
 
         Set<Tag> tags = new HashSet<>();
-        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
-            List<UUID> tagUuids = request.getTagIds().stream()
+        if (request.tagIds() != null && !request.tagIds().isEmpty()) {
+            List<UUID> tagUuids = request.tagIds().stream()
                     .map(UUID::fromString)
                     .collect(Collectors.toList());
             tags = new HashSet<>(tagRepository.findAllById(tagUuids));
@@ -139,53 +111,14 @@ public class WebsiteService {
         websiteRepository.save(website);
 
         CheckResult latest = checkResultRepository
-                .findFirstByWebsiteIdOrderByCheckedAtDesc(id)
+                .findFirstByWebsite_IdOrderByCheckedAtDesc(websiteId)
                 .orElse(null);
-        return toResponse(website, latest);
+        return websiteMapper.toResponse(website, latest);
     }
 
-    /**
-     * Get check history for a website
-     * @param websiteId website ID
-     * @param page page number
-     * @param size page size
-     * @return list of check results
-     */
     @Transactional(readOnly = true)
-    public List<CheckResult> getWebsiteHistory(String websiteId, int page, int size) {
-        UUID id = UUID.fromString(websiteId);
-        return checkResultRepository.findByWebsiteIdOrderByCheckedAtDesc(
-                id, PageRequest.of(page, size));
-    }
-
-    /**
-     * Convert entity to response DTO
-     * @param website the website entity
-     * @param latestResult the latest check result (nullable)
-     * @return website response DTO
-     */
-    private WebsiteResponse toResponse(MonitoredWebsite website, CheckResult latestResult) {
-        WebsiteResponse.WebsiteResponseBuilder builder = WebsiteResponse.builder()
-                .id(website.getId().toString())
-                .url(website.getUrl())
-                .alias(website.getAlias())
-                .enabled(website.getEnabled())
-                .tags(website.getTags().stream()
-                        .map(t -> TagResponse.builder()
-                                .id(t.getId().toString())
-                                .name(t.getName())
-                                .color(t.getColor())
-                                .createdAt(t.getCreatedAt())
-                                .build())
-                        .collect(Collectors.toList()))
-                .createdAt(website.getCreatedAt());
-
-        if (latestResult != null) {
-            builder.status(latestResult.getStatus().name())
-                    .httpCode(latestResult.getHttpCode())
-                    .responseMs(latestResult.getResponseMs())
-                    .lastCheckedAt(latestResult.getCheckedAt());
-        }
-        return builder.build();
+    public Page<CheckResultResponse> getWebsiteHistory(UUID websiteId, Pageable pageable) {
+        return checkResultRepository.findByWebsite_IdOrderByCheckedAtDesc(websiteId, pageable)
+                .map(websiteMapper::toCheckResultResponse);
     }
 }

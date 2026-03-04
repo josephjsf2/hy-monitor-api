@@ -16,10 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Authentication service
- * Handles user registration and login
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,21 +26,16 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
 
-    /**
-     * Register a new user
-     * @param request registration request
-     * @return authentication response with JWT token
-     */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByUsername(request.username())) {
             throw new DuplicateResourceException("Username already exists");
         }
 
         AppUser user = AppUser.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .displayName(request.getDisplayName())
+                .username(request.username())
+                .password(passwordEncoder.encode(request.password()))
+                .displayName(request.displayName())
                 .build();
 
         userRepository.save(user);
@@ -53,33 +44,20 @@ public class AuthService {
 
         String token = jwtTokenProvider.generateToken(user.getUsername());
 
-        return AuthResponse.builder()
-                .token(token)
-                .username(user.getUsername())
-                .displayName(user.getDisplayName())
-                .build();
+        return new AuthResponse(token, user.getUsername(), user.getDisplayName());
     }
 
-    /**
-     * Authenticate user and generate JWT token
-     * @param request login request
-     * @return authentication response with JWT token
-     */
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(request.username(), request.password())
         );
 
-        String token = jwtTokenProvider.generateToken(request.getUsername());
-        AppUser user = userRepository.findByUsername(request.getUsername())
+        String token = jwtTokenProvider.generateToken(request.username());
+        AppUser user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         LOGGER.info("User logged in successfully: {}", user.getUsername());
 
-        return AuthResponse.builder()
-                .token(token)
-                .username(user.getUsername())
-                .displayName(user.getDisplayName())
-                .build();
+        return new AuthResponse(token, user.getUsername(), user.getDisplayName());
     }
 }
